@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transit — AIoT & LLM Research Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c1922;
+    --bg-grid: #0f1e28;
+    --panel: #132531;
+    --panel-alt: #18303c;
+    --border: #234250;
+    --accent-amber: #f2a93b;
+    --accent-amber-dim: #8a6423;
+    --accent-teal: #3fc1c9;
+    --accent-teal-dim: #235e63;
+    --text: #eaf2f4;
+    --text-muted: #7e9aa5;
+    --text-faint: #4d6570;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(63,193,201,0.07), transparent 40%),
+      radial-gradient(circle at 90% 20%, rgba(242,169,59,0.06), transparent 45%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  .app {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 28px 24px 60px;
+  }
+
+  /* ---- Header ---- */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 28px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .brand-mark {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: linear-gradient(145deg, var(--accent-teal), var(--accent-teal-dim));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 0 24px rgba(63,193,201,0.35);
+  }
+
+  .brand-mark svg { width: 22px; height: 22px; }
+
+  .brand h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.2px;
+  }
+
+  .brand p {
+    margin: 2px 0 0;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .source-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent-amber);
+    background: rgba(242,169,59,0.08);
+    border: 1px solid var(--accent-amber-dim);
+    padding: 7px 12px;
+    border-radius: 100px;
+    white-space: nowrap;
+    text-align: right;
+    line-height: 1.5;
+  }
+
+  /* ---- Layout ---- */
+  .layout {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .panel-head {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-head .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent-teal);
+    box-shadow: 0 0 8px var(--accent-teal);
+  }
+
+  .panel-head span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* ---- Chat ---- */
+  #chatBody {
+    height: 460px;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  #chatBody::-webkit-scrollbar { width: 6px; }
+  #chatBody::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .empty-state {
+    margin: auto;
+    text-align: center;
+    max-width: 340px;
+    color: var(--text-muted);
+  }
+
+  .empty-state svg { width: 34px; height: 34px; color: var(--text-faint); margin-bottom: 10px; }
+  .empty-state p { font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; }
+
+  .chips {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .chip {
+    font-size: 12.5px;
+    text-align: left;
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 13px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: border-color 0.15s ease, transform 0.1s ease;
+  }
+  .chip:hover { border-color: var(--accent-teal-dim); transform: translateX(2px); }
+
+  .msg { max-width: 88%; display: flex; flex-direction: column; gap: 6px; }
+  .msg.user { align-self: flex-end; align-items: flex-end; }
+  .msg.bot { align-self: flex-start; align-items: flex-start; }
+
+  .bubble {
+    padding: 12px 15px;
+    border-radius: 12px;
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+  .msg.user .bubble {
+    background: var(--accent-teal-dim);
+    border: 1px solid var(--accent-teal);
+    border-bottom-right-radius: 3px;
+  }
+  .msg.bot .bubble {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 3px;
+  }
+  .msg.bot .bubble.error { border-color: #b95050; color: #f0b4b4; }
+
+  .msg-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-faint);
+    letter-spacing: 0.5px;
+    padding: 0 3px;
+  }
+
+  .thinking {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    padding: 12px 15px;
+  }
+  .thinking span {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent-teal);
+    animation: pulse 1.1s infinite ease-in-out;
+  }
+  .thinking span:nth-child(2) { animation-delay: 0.15s; }
+  .thinking span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes pulse { 0%,80%,100% { opacity: 0.25; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
+
+  /* ---- Input ---- */
+  .input-row {
+    display: flex;
+    gap: 10px;
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    background: var(--panel-alt);
+  }
+
+  #questionInput {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 11px 14px;
+    border-radius: 9px;
+    font-size: 13.5px;
+    font-family: 'Inter', sans-serif;
+    outline: none;
+  }
+  #questionInput:focus { border-color: var(--accent-teal); }
+  #questionInput::placeholder { color: var(--text-faint); }
+
+  #sendBtn {
+    background: var(--accent-amber);
+    color: #24160a;
+    border: none;
+    padding: 0 18px;
+    border-radius: 9px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+  }
+  #sendBtn:hover { filter: brightness(1.08); }
+  #sendBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ---- Pipeline signature element ---- */
+  .pipeline {
+    padding: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pipeline-track {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pipeline-track::before {
+    content: '';
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    right: 15px;
+    height: 1.5px;
+    background: var(--border);
+    z-index: 0;
+  }
+  .stage {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 78px;
+  }
+  .stage-dot {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.3s ease;
+  }
+  .stage-dot svg { width: 14px; height: 14px; color: var(--text-faint); transition: color 0.3s ease; }
+  .stage-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    color: var(--text-faint);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    transition: color 0.3s ease;
+  }
+  .stage.active .stage-dot {
+    border-color: var(--accent-teal);
+    box-shadow: 0 0 14px rgba(63,193,201,0.5);
+  }
+  .stage.active .stage-dot svg { color: var(--accent-teal); }
+  .stage.active .stage-label { color: var(--accent-teal); }
+  .stage.done .stage-dot { border-color: var(--accent-amber); background: rgba(242,169,59,0.1); }
+  .stage.done .stage-dot svg { color: var(--accent-amber); }
+  .stage.done .stage-label { color: var(--text-muted); }
+
+  /* ---- Sources panel ---- */
+  #sourcesBody {
+    padding: 16px 18px;
+    max-height: 560px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  #sourcesBody::-webkit-scrollbar { width: 6px; }
+  #sourcesBody::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .source-empty {
+    color: var(--text-faint);
+    font-size: 12.5px;
+    line-height: 1.7;
+    padding: 4px 2px;
+  }
+
+  .source-card {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--accent-teal);
+    border-radius: 8px;
+    padding: 12px 14px;
+    animation: slideIn 0.35s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .source-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 7px;
+  }
+  .source-card-head .sec {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--accent-teal);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .source-card-head .score {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-faint);
+  }
+  .source-card p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--text-muted);
+  }
+
+  footer {
+    margin-top: 22px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-faint);
+    font-family: 'JetBrains Mono', monospace;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#04252a" stroke-width="2" stroke-linecap="round"><path d="M3 18h18M3 12h18M3 6h18"/><circle cx="7" cy="6" r="1.4" fill="#04252a" stroke="none"/><circle cx="17" cy="12" r="1.4" fill="#04252a" stroke="none"/><circle cx="10" cy="18" r="1.4" fill="#04252a" stroke="none"/></svg>
+      </div>
+      <div>
+        <h1>Transit</h1>
+        <p>AIoT &amp; LLM Research Assistant — Smart Urban Transport</p>
+      </div>
+    </div>
+    <div class="source-tag">Grounded in: "A Systematic Review of AIoT and LLM<br>Applications in Smart Urban Transport" · ITNAF / ISC 2024</div>
+  </header>
+
+  <div class="layout">
+
+    <!-- Chat panel -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="dot"></div>
+        <span>Ask the paper</span>
+      </div>
+
+      <div id="chatBody">
+        <div class="empty-state" id="emptyState">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10h8M8 14h5M21 12c0 4.4-4 8-9 8-1.4 0-2.7-.3-3.9-.8L3 20l1-4.3C3.4 14.6 3 13.3 3 12c0-4.4 4-8 9-8s9 3.6 9 8Z"/></svg>
+          <p>Ask a question about AIoT, LLM integration, or smart urban transport. Answers are retrieved and grounded directly in the paper's content — not general knowledge.</p>
+          <div class="chips">
+            <button class="chip" onclick="askSuggested(this)">How do AIoT and LLMs complement each other in transport systems?</button>
+            <button class="chip" onclick="askSuggested(this)">What are the main limitations of deploying LLMs at the edge?</button>
+            <button class="chip" onclick="askSuggested(this)">How was the systematic review conducted?</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-row">
+        <input id="questionInput" type="text" placeholder="Ask about the paper…" onkeydown="if(event.key==='Enter') sendQuestion()">
+        <button id="sendBtn" onclick="sendQuestion()">Ask</button>
+      </div>
+    </div>
+
+    <!-- Sources / pipeline panel -->
+    <div class="panel">
+      <div class="pipeline">
+        <div class="pipeline-track" id="pipelineTrack">
+          <div class="stage" data-stage="query">
+            <div class="stage-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></div>
+            <div class="stage-label">Query</div>
+          </div>
+          <div class="stage" data-stage="retrieve">
+            <div class="stage-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+            <div class="stage-label">Retrieve</div>
+          </div>
+          <div class="stage" data-stage="reason">
+            <div class="stage-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 0-5 5c0 2 1 3 1 5v2h8v-2c0-2 1-3 1-5a5 5 0 0 0-5-5Z"/><path d="M9 21h6M10 18h4"/></svg></div>
+            <div class="stage-label">Reason</div>
+          </div>
+          <div class="stage" data-stage="answer">
+            <div class="stage-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div>
+            <div class="stage-label">Answer</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-head">
+        <div class="dot" style="background:var(--accent-amber); box-shadow:0 0 8px var(--accent-amber);"></div>
+        <span>Retrieved passages</span>
+      </div>
+      <div id="sourcesBody">
+        <div class="source-empty" id="sourcesEmpty">No query yet. When you ask a question, the most relevant passages from the paper will appear here — this is what the assistant is actually reading before it answers.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>RAG demo — retrieval runs client-side (TF‑IDF cosine similarity) · generation via Claude · answers are grounded strictly in the source paper</footer>
+</div>
+
+<script>
+/* ============ Paper corpus, chunked by section ============ */
+const CHUNKS = [
+  { section: "Abstract", text: "Rapid urbanization and the limited ability of transportation infrastructure to expand have intensified traffic congestion, shortages in public transit services, and rising air pollution in cities. This study presents a systematic review of how the combined use of the Artificial Intelligence of Things (AIoT) and Large Language Models (LLMs) can help address these challenges by supporting more adaptive and data-driven approaches to urban mobility management. The integration of connected vehicles, IoT-based sensing systems, and LLM-supported reasoning enables continuous information exchange that can improve congestion prediction, reduce fuel use, and lower environmental impacts. The review identifies key barriers including the absence of alternative routes in highly congested corridors and a shortage of specialists who can translate AI-generated insights into practical operational strategies." },
+  { section: "AIoT Fundamentals", text: "Artificial Intelligence of Things refers to the integration of artificial intelligence techniques with Internet of Things infrastructures to enable local processing, real-time perception, and automated responses. In contrast to conventional IoT systems that primarily focus on data collection and transmission, AIoT embeds analytical capabilities within devices, gateways, and network layers. AIoT architectures in urban transport are typically organized around sensing, communication, edge processing, and cloud analytics layers. Common AIoT applications include short-term congestion prediction, traffic flow monitoring, dynamic routing, and predictive maintenance of transport infrastructure and vehicle fleets." },
+  { section: "AIoT Limitations", text: "Existing studies consistently report limitations associated with AIoT-based transport systems: rapid growth in data volume places pressure on communication bandwidth and processing resources, especially in dense urban areas. Many edge devices operate under strict energy and hardware constraints, limiting the complexity of models deployed locally. Ensuring privacy, security, and interoperability across devices, vendors, and agencies remains a persistent challenge. Current AIoT implementations are often optimized for detection, monitoring, and control tasks rather than higher-level interpretation or decision support." },
+  { section: "Large Language Models in Transport", text: "Large Language Models are built on transformer architectures that capture long-range dependencies and complex relationships within large-scale datasets. In transportation research, LLMs have attracted attention because many operational and planning processes rely on textual or semi-structured information — incident reports, maintenance records, policy documents, and user feedback. LLMs can process such information to identify recurring patterns, support classification, and produce concise summaries that assist human operators and planners. Multimodal LLMs can support tasks such as interpreting traffic images and associating sensor anomalies with descriptive context." },
+  { section: "LLM Limitations", text: "The literature repeatedly highlights important limitations of LLMs: their computational and energy requirements remain substantial, raising concerns about scalability and cost when deployed at scale. Another widely discussed issue is hallucination, where outputs may appear coherent but lack factual grounding — in transport applications where decisions affect safety, this limits the degree to which LLMs can be used without human oversight. Techniques such as fine-tuning, prompt design, and retrieval-based mechanisms are commonly discussed as ways to improve reliability and contextual relevance, though these adaptations increase system complexity and maintenance effort." },
+  { section: "Taxonomy of Applications", text: "Applications of AI in smart urban transport can be organized into three categories. The first includes AIoT-based applications focused on operational sensing and control — traffic flow monitoring, congestion detection, adaptive signal control — where intelligence is embedded at the device or edge level for fast, low-latency reactions. The second consists of LLM-centered applications for processing textual information, supporting summarization, classification, and decision support, emphasizing interpretation and human communication rather than real-time control. The third category captures integrated AIoT–LLM applications, where AIoT provides continuous situational awareness while LLMs analyze aggregated information and support coordinated, system-level decision-making." },
+  { section: "AIoT Architecture Layers", text: "AIoT-based smart transport systems are structured around a layered architecture. The device layer includes sensors, cameras, and embedded modules that collect raw data on speed, flow, occupancy, and environmental conditions. The communication layer aggregates sensor streams and supports connectivity between vehicles, roadside units, and control centers. The data processing layer combines edge and cloud computing: edge nodes perform time-sensitive processing for adaptive signal control and incident detection, while cloud platforms support large-scale storage, long-term analysis, and model training. The application layer delivers outputs like traffic dashboards and real-time routing services." },
+  { section: "LLM Integration Layer", text: "The LLM integration layer introduces a reasoning and interpretation component into AIoT-enabled systems, transforming aggregated data into coherent, context-aware insights. Deployment strategies vary: cloud-based deployment supports complex analytical tasks such as system-wide assessment, while edge-level deployment uses lightweight or compressed models for time-sensitive applications with limited scope. Hybrid approaches combine both — enabling rapid local responses while reserving intensive reasoning for centralized platforms. Retrieval-based mechanisms allow models to access up-to-date information during inference rather than relying solely on pre-trained knowledge, and prompt design plays a central role in producing consistent, reviewable outputs." },
+  { section: "Edge–Cloud Collaboration", text: "Effective integration of AIoT and LLMs depends on a clear division of responsibilities between edge and cloud environments. At the edge, processing occurs close to data sources — sensors, vehicles, roadside units — enabling low-latency responses for incident detection and adaptive signal control while reducing communication overhead. Cloud computing complements this by supporting large-scale storage, historical trend analysis, and system-wide optimization. Coordination is often implemented through adaptive offloading strategies, where tasks are dynamically assigned to edge or cloud resources based on latency tolerance, computational load, and network conditions." },
+  { section: "Evaluation Metrics", text: "Evaluating AIoT- and LLM-enabled transport systems requires combining quantitative indicators with qualitative judgement, since performance emerges from interactions across sensing, communication, computation, and decision-support layers. LLM evaluation focuses on correctness, completeness, contextual alignment, reasoning quality, explainability, and consistency across repeated queries. AIoT and ITS performance metrics focus on latency, responsiveness, reliability under fluctuating conditions, and scalability to city-wide deployments. A recurring issue is the absence of shared benchmarks for integrated AIoT–LLM systems, since many evaluations rely on custom scenarios or simulations that are difficult to compare across studies." },
+  { section: "Technical Challenges", text: "One of the most frequently reported technical challenges relates to real-time data processing at scale, given continuous streams of heterogeneous data from sensors, cameras, and connected vehicles. Scalability is closely linked: systems that perform well in limited testbeds often degrade when extended to city-wide deployments as communication overhead and coordination complexity grow. Integrating heterogeneous data and system components from different vendors is non-trivial. The deployment of LLMs introduces additional constraints — high computational and energy requirements limit where models can be executed, particularly in edge-based or latency-sensitive applications." },
+  { section: "Ethical and Privacy Issues", text: "The increasing reliance on AIoT infrastructures raises important ethical and privacy concerns, since continuous collection of mobility-related data — including location traces and travel behavior — creates risk of unintended surveillance when aggregated across large populations. Even anonymized data sources can enable re-identification when combined. Ethical questions also arise from learning-based models reflecting biases in training data, which can influence how incidents are interpreted or services recommended, potentially causing uneven impacts across neighborhoods or user groups." },
+  { section: "Future Research Directions", text: "Research on AIoT and LLMs in smart urban transport is still at an early stage of maturity. Key future directions include tighter integration of real-time sensing with higher-level reasoning through adaptive edge–cloud coordination; development of standardized evaluation frameworks that combine operational performance, reasoning quality, and infrastructure constraints; deeper study of human–system interaction to understand how operators and planners trust AI-generated outputs; and longitudinal, cross-city studies to assess long-term reliability and institutional adaptation beyond short-term pilot projects." },
+  { section: "Methodology", text: "A systematic literature review was adopted, examining studies published between 2016 and 2025 across major academic databases including IEEE Xplore, Scopus, Web of Science, ScienceDirect, SpringerLink, and Wiley Online Library. The review initially retrieved 230 records; after title screening, duplicate removal, abstract screening, and full-text quality assessment against inclusion criteria focused on relevance to urban transport and use of AIoT- or LLM-based approaches, 42 studies were selected for full-text analysis, ensuring transparency and methodological consistency." }
+];
+
+/* ============ Lightweight TF-IDF retrieval (client-side, no libraries) ============ */
+function tokenize(str) {
+  return str.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+}
+
+const STOPWORDS = new Set(['the','and','for','are','with','that','this','from','have','has','can','their','these','into','such','not','was','were','which','also','its','more','than','they','when','all','use','used','using','via','how','what','why','does']);
+
+function buildIndex(chunks) {
+  const docsTokens = chunks.map(c => tokenize(c.text).filter(w => !STOPWORDS.has(w)));
+  const df = {};
+  docsTokens.forEach(tokens => {
+    new Set(tokens).forEach(t => df[t] = (df[t] || 0) + 1);
+  });
+  const N = chunks.length;
+  const idf = {};
+  Object.keys(df).forEach(t => idf[t] = Math.log((N + 1) / (df[t] + 0.5)) + 1);
+  return { docsTokens, idf };
+}
+
+function vectorize(tokens, idf) {
+  const tf = {};
+  tokens.forEach(t => tf[t] = (tf[t] || 0) + 1);
+  const vec = {};
+  Object.keys(tf).forEach(t => { if (idf[t]) vec[t] = tf[t] * idf[t]; });
+  return vec;
+}
+
+function cosineSim(vecA, vecB) {
+  let dot = 0, normA = 0, normB = 0;
+  Object.keys(vecA).forEach(k => { normA += vecA[k] ** 2; if (vecB[k]) dot += vecA[k] * vecB[k]; });
+  Object.keys(vecB).forEach(k => normB += vecB[k] ** 2);
+  if (normA === 0 || normB === 0) return 0;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+const INDEX = buildIndex(CHUNKS);
+
+function retrieve(query, k = 4) {
+  const qTokens = tokenize(query).filter(w => !STOPWORDS.has(w));
+  const qVec = vectorize(qTokens, INDEX.idf);
+  const scored = CHUNKS.map((chunk, i) => {
+    const dVec = vectorize(INDEX.docsTokens[i], INDEX.idf);
+    return { ...chunk, score: cosineSim(qVec, dVec) };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored.filter(s => s.score > 0).slice(0, k);
+}
+
+/* ============ UI wiring ============ */
+const chatBody = document.getElementById('chatBody');
+const sourcesBody = document.getElementById('sourcesBody');
+const questionInput = document.getElementById('questionInput');
+const sendBtn = document.getElementById('sendBtn');
+
+function setStage(name) {
+  document.querySelectorAll('.stage').forEach(s => {
+    const stageOrder = ['query','retrieve','reason','answer'];
+    const cur = stageOrder.indexOf(name);
+    const own = stageOrder.indexOf(s.dataset.stage);
+    s.classList.remove('active','done');
+    if (own < cur) s.classList.add('done');
+    if (own === cur) s.classList.add('active');
+  });
+}
+function resetStages() {
+  document.querySelectorAll('.stage').forEach(s => s.classList.remove('active','done'));
+}
+
+function addMessage(role, text, isError) {
+  const empty = document.getElementById('emptyState');
+  if (empty) empty.remove();
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + role;
+  const label = document.createElement('div');
+  label.className = 'msg-label';
+  label.textContent = role === 'user' ? 'YOU' : 'TRANSIT';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble' + (isError ? ' error' : '');
+  bubble.textContent = text;
+  wrap.appendChild(label);
+  wrap.appendChild(bubble);
+  chatBody.appendChild(wrap);
+  chatBody.scrollTop = chatBody.scrollHeight;
+  return bubble;
+}
+
+function addThinking() {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg bot';
+  wrap.id = 'thinkingMsg';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble thinking';
+  bubble.innerHTML = '<span></span><span></span><span></span>';
+  wrap.appendChild(bubble);
+  chatBody.appendChild(wrap);
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
+function removeThinking() {
+  const el = document.getElementById('thinkingMsg');
+  if (el) el.remove();
+}
+
+function renderSources(results) {
+  sourcesBody.innerHTML = '';
+  if (results.length === 0) {
+    sourcesBody.innerHTML = '<div class="source-empty">No relevant passages found for this query in the source paper.</div>';
+    return;
+  }
+  results.forEach(r => {
+    const card = document.createElement('div');
+    card.className = 'source-card';
+    card.innerHTML = `
+      <div class="source-card-head">
+        <span class="sec">${r.section}</span>
+        <span class="score">relevance ${(r.score * 100).toFixed(0)}%</span>
+      </div>
+      <p>${r.text}</p>
+    `;
+    sourcesBody.appendChild(card);
+  });
+}
+
+function askSuggested(btn) {
+  questionInput.value = btn.textContent;
+  sendQuestion();
+}
+
+async function sendQuestion() {
+  const question = questionInput.value.trim();
+  if (!question) return;
+  sendBtn.disabled = true;
+  questionInput.disabled = true;
+  addMessage('user', question);
+  questionInput.value = '';
+
+  setStage('query');
+  await new Promise(r => setTimeout(r, 250));
+
+  setStage('retrieve');
+  const results = retrieve(question, 4);
+  renderSources(results);
+  await new Promise(r => setTimeout(r, 350));
+
+  setStage('reason');
+  addThinking();
+
+  const context = results.map(r => `[${r.section}]\n${r.text}`).join('\n\n');
+  const systemPrompt = `You are Transit, a research assistant grounded strictly in a single academic paper: "A Systematic Review of AIoT and Large Language Model Applications in Smart Urban Transport" (ITNAF National Conference, ISC-indexed, 2024).
+
+Answer the user's question using ONLY the retrieved passages provided below. If the passages don't contain enough information to answer, say so clearly rather than guessing or using outside knowledge. Keep answers concise (3-6 sentences), precise, and written for someone evaluating this as a portfolio/research demo. Do not mention "passages" or "context" explicitly — just answer naturally as if you know the paper.
+
+RETRIEVED PASSAGES:
+${context}`;
+
+  try {
+    // Calls our own backend (/api/ask), which securely holds the API key server-side.
+    const response = await fetch("/api/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ systemPrompt, question })
+    });
+    const data = await response.json();
+    removeThinking();
+    setStage('answer');
+
+    if (data.answer) {
+      addMessage('bot', data.answer);
+    } else {
+      addMessage('bot', 'The model did not return a usable response. ' + (data.error || ''), true);
+    }
+  } catch (err) {
+    removeThinking();
+    addMessage('bot', 'Request failed: ' + err.message, true);
+  }
+
+  sendBtn.disabled = false;
+  questionInput.disabled = false;
+  questionInput.focus();
+  setTimeout(resetStages, 2500);
+}
+</script>
+
+</body>
+</html>

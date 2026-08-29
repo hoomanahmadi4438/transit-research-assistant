@@ -1,0 +1,6 @@
+{
+  "name": "transit-research-assistant",
+  "version": "1.0.0",
+  "description": "RAG research assistant grounded in an AIoT/LLM smart transport paper",
+  "private": true
+}
